@@ -19,8 +19,9 @@ class LocationFixer{
 			coordinates = params.get("cbll")
 			const regex = new RegExp("^" + baseRegex + "$")
 			const match = coordinates.match(regex)
+			let coordinatesSplit = coordinates.split(",")
 			if(match){
-				return {"coordinate": coordinates, "heading": undefined, "pitch": undefined}
+				return {"lat": coordinatesSplit[0], "lng": coordinatesSplit[1]}
 			}
 			else{
 				throw new Error("Invalid coordinates in the URL")
@@ -35,18 +36,70 @@ class LocationFixer{
 			catch{
 				throw new Error("Invalid URL: this link might not be an unshortened Google Maps URL")
 			}
-			return {"coordinate": coordinates, "heading": undefined, "pitch": undefined}
+			let coordinatesSplit = coordinates.split(",")
+			return {"lat": coordinatesSplit[0], "lng": coordinatesSplit[1]}
 		}
 	}
 
-	async addFixedCoordinates(coordinates, heading = undefined, pitch = undefined){
+	#getTileFromCoordinates(coordinates, zoomLevel = 17){
+		if(Math.abs(coordinates.lat) > 90){
+			throw new Error("Invalid latitude")
+		}
+		if(Math.abs(coordinates.lng) > 180){
+			throw new Error("Invalid longitude")
+		}
+		let latRadian = coordinates.lat * Math.PI / 180
+		let latSin = Math.sin(latRadian)
+		if(Math.abs(latSin) > .9999){
+			throw new Error("Can't use coordinates near the poles")
+		}
+		let latTransformed = Math.log((1 + latSin) / (1 - latSin))
+		let x = .5 + coordinates.lng / 360
+		let y = .5 - latTransformed / (4 * Math.PI)
+		let scale = 2 ** zoomLevel
+		return {"x": Math.floor(x * scale), "y": Math.floor(y * scale)}
+	}
+
+	#getPanosFromTile(tile){
+		let url = `https://www.google.com/maps/photometa/ac/v1?pb=!1m1!1smaps_sv.tactile!6m3!1i${tile.x}!2i${tile.y}!3i17!8b1`
+		return fetch(url).then(
+			response => {
+				return response.text()
+			}
+		).then(
+			response => {
+				response = response.split(/\r?\n/)[1]
+				response = JSON.parse(response)
+				if(!response[1]){
+					return []
+				}
+				if(!response[1][1]){
+					return []
+				}
+				response = response[1][1]
+				let panoIDs = []
+				for(let i = 0; i < response.length; i++){
+					panoIDs.push({"id": response[0][0][0][1], "lat": response[0][0][2][0][2], "lng": response[0][0][2][0][3]})
+				}
+				return panoIDs
+			}
+		)
+	}
+
+	async addFixedCoordinates(location){
+		if(location.panoId){
+			this.newLocations.push(location)
+			return
+		}
+		let heading = location.heading
+		let pitch = location.pitch
 		if(heading === undefined){
 			heading = 0
 		}
 		if(pitch === undefined){
 			pitch = 0
 		}
-		const url = this.baseUrl + "&location=" + coordinates
+		const url = this.baseUrl + "&location=" + location.lat + "," + location.lng
 		return fetch(url).then(
 			response => {
 				if(!response.ok){
@@ -58,17 +111,36 @@ class LocationFixer{
 			},
 		).then(
 			response => {
+				let isError = false
 				if(response.status !== "OK"){
-					throw new Error("No replacement image available, error code " + response.status)
+					isError = true
 				}
-				console.log(response.copyright.substring(1))
-				if(response.copyright.substring(1) !== " Google"){
-					throw new Error("Only found unofficial coverage")
+				else{
+					if(response.copyright.substring(1) !== " Google"){
+						isError = true
+					}
 				}
-				const newLocation = {"heading": heading, "pitch": pitch, "zoom": 0, "panoId": response.pano_id, "lat": response.location.lat, "lng": response.location.lng}
-				this.newLocations.push(newLocation)
-				return this.export(newLocation)
-			},
+				if(!isError){
+					const newLocation = {"heading": heading, "pitch": pitch, "zoom": 0, "panoId": response.pano_id, "lat": response.location.lat, "lng": response.location.lng, "extra": location.extra}
+					this.newLocations.push(newLocation)
+					return this.export(newLocation)
+				}
+				else{
+					let tile = this.#getTileFromCoordinates(location)
+					return this.#getPanosFromTile(tile).then(
+						response => {
+							if(response.length > 0){
+								const newLocation = {"heading": heading, "pitch": pitch, "zoom": 0, "panoId": response[0].id, "lat": response[0].lat, "lng": response[0].lng, "extra": location.extra}
+								this.newLocations.push(newLocation)
+								return this.export(newLocation)
+							}
+							else{
+								throw new Error("No replacement found")
+							}
+						}
+					)
+				}
+			}
 		)
 	}
 

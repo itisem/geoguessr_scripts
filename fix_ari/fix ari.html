@@ -1,14 +1,14 @@
 <!doctype html>
 <html>
 	<head>
-		<title>fix ari</title>
+		<title>fix ari and broken coverage</title>
 		<script src="location_fixer.js"></script>
 		<script src="fix_ari.js"></script>
 		<link rel="stylesheet" href="fix_ari.css"/>
 	</head>
 	<body>
 		<main>
-			<h1>ari fixer</h1>
+			<h1>ari & broken coverage fixer</h1>
 			<div id="entry">
 				<textarea id="links"></textarea>
 				<button id="fix_button" onclick="fixAri()">extract links</button>
@@ -19,8 +19,13 @@
 				<output id="results_output">
 				</output>
 			</div>
+			<div id="error_json">
+				<h3>errors (json)</h3>
+				<output id="error_output_json">
+				</output>
+			</div>
 			<div id="error">
-				<h3>errors</h3>
+				<h3>errors (humanly readable)</h3>
 				<output id="error_output">
 				</output>
 			</div>
@@ -35,9 +40,19 @@
 					</ul>
 				</li>
 				<li>click extract links</li>
-				<li>once you are finished, the script will generate a json output that you can import with slashp's script</li>
+				<li>once the script is finished, it will generate a json output that you can import with slashp's script</li>
 				<li>any location that couldn't be fixed will be removed and listed in the errors list</li>
 			</ol>
+			<h2>updates</h2>
+			<p><b>2022-02-06</b><br />
+				various improvements:
+				<ol>
+					<li>"hidden" coverage is now recoverable in countries like vietnam or nigeria</li>
+					<li>locations that are already panoid'd won't be changed anymore</li>
+					<li>large maps are handled better</li>
+					<li>locations that couldn't be replaced are also outputted in json format</li>
+				</ol>
+			</p>
 		</div>
 	</body>
 </html>
