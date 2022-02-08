@@ -60,6 +60,15 @@ class LocationFixer{
 		return {"x": Math.floor(x * scale), "y": Math.floor(y * scale)}
 	}
 
+	#getDistanceBetweenCoordinates(coordinate1, coordinate2){ // haversine formula stuff
+		const earthRadius = 6378137
+		const radianMultiplier = Math.PI / 180
+		const radian1 = {"lat": coordinate1.lat * radianMultiplier, "lng": coordinate1.lng*radianMultiplier}
+		const radian2 = {"lat": coordinate2.lat * radianMultiplier, "lng": coordinate2.lng*radianMultiplier}
+		let tempCalc = 0.5 - Math.cos(radian2.lat - radian1.lat)/2 +  Math.cos(radian1.lat) * Math.cos(radian2.lat) * (1 - Math.cos(radian2.lng - radian1.lng))/2
+		return 2 * earthRadius * Math.asin(Math.sqrt(tempCalc))
+	}
+
 	#getPanosFromTile(tile){
 		let url = `https://www.google.com/maps/photometa/ac/v1?pb=!1m1!1smaps_sv.tactile!6m3!1i${tile.x}!2i${tile.y}!3i17!8b1`
 		return fetch(url).then(
@@ -79,7 +88,7 @@ class LocationFixer{
 				response = response[1][1]
 				let panoIDs = []
 				for(let i = 0; i < response.length; i++){
-					panoIDs.push({"id": response[0][0][0][1], "lat": response[0][0][2][0][2], "lng": response[0][0][2][0][3]})
+					panoIDs.push({"id": response[i][0][0][1], "lat": response[i][0][2][0][2], "lng": response[i][0][2][0][3]})
 				}
 				return panoIDs
 			}
@@ -91,13 +100,11 @@ class LocationFixer{
 			this.newLocations.push(location)
 			return
 		}
-		let heading = location.heading
-		let pitch = location.pitch
-		if(heading === undefined){
-			heading = 0
+		if(location.heading === undefined){
+			location.heading = 0
 		}
-		if(pitch === undefined){
-			pitch = 0
+		if(location.pitch === undefined){
+			location.pitch = 0
 		}
 		const url = this.baseUrl + "&location=" + location.lat + "," + location.lng
 		return fetch(url).then(
@@ -130,9 +137,20 @@ class LocationFixer{
 					return this.#getPanosFromTile(tile).then(
 						response => {
 							if(response.length > 0){
-								const newLocation = {"heading": heading, "pitch": pitch, "zoom": 0, "panoId": response[0].id, "lat": response[0].lat, "lng": response[0].lng, "extra": location.extra}
-								this.newLocations.push(newLocation)
-								return this.export(newLocation)
+								let newLocation, distance
+								let minDistance = Math.min()
+								for(let i = 0; i < response.length; i++){
+									distance = this.#getDistanceBetweenCoordinates(location, response[i])
+									if(distance < minDistance){
+										newLocation = response[i]
+										minDistance = distance
+									}
+								}
+								location.panoId = newLocation.id
+								location.lat = newLocation.lat
+								location.lng = newLocation.lng
+								this.newLocations.push(location)
+								return this.export(location)
 							}
 							else{
 								throw new Error("No replacement found")

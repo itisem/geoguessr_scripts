@@ -42,17 +42,25 @@
 				<li>click extract links</li>
 				<li>once the script is finished, it will generate a json output that you can import with slashp's script</li>
 				<li>any location that couldn't be fixed will be removed and listed in the errors list</li>
+				<li>if you want to keep adding locations to your maps, use <a href="https://map-making.app">map-making.app</a> instead of the official mapmaker</li>
 			</ol>
 			<h2>updates</h2>
-			<p><b>2022-02-06</b><br />
-				various improvements:
+			<details><summary><b>v2.1 (2022-02-08)</b></summary>
+				<ol><li>improved handling of hidden coverage - it now selects the closest location instead of the default one</li></ol>
+			</details>
+			<details><summary><b>v2.0 (2022-02-06)</b></summary>
 				<ol>
-					<li>"hidden" coverage is now recoverable in countries like vietnam or nigeria</li>
-					<li>locations that are already panoid'd won't be changed anymore</li>
-					<li>large maps are handled better</li>
+					<li>"hidden" coverage is now recoverable in countries such as vietnam or nigeria</li>
+					<li>locations that are already panoid'd won't be updated anymore</li>
+					<li>fixed the errors regarding large maps</li>
 					<li>locations that couldn't be replaced are also outputted in json format</li>
 				</ol>
-			</p>
+			</details>
+			<details><summary><b>v1.0 (2021-11-29)</b></summary>
+				<ol>
+					<li>simple ari replacement stuff. every location is re-panoid'd</li>
+				</ol>
+			</details>
 		</div>
 	</body>
 </html>
