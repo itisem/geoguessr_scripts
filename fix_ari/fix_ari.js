@@ -2,10 +2,27 @@ function displayError(link, message){
 	document.getElementById("error_output").innerHTML += `<p>Failed to convert <b>${link}</b> -- ${message}</p>`
 }
 
+async function addCoordinateChunk(chunk, l, errorCoordinates){
+	let promises = []
+	for(let i =0; i < chunk.length; i++){
+		promises.push(l.addFixedCoordinates(chunk[i]))
+	}
+	await Promise.allSettled(promises).then(
+		results => {
+				for(let j = 0; j < results.length; j++){
+					if(results[j].status == "rejected"){
+						displayError(chunk[j].lat + "," + chunk[j].lng, results[j].reason.message)
+						errorCoordinates.push(chunk[j])
+					}
+			}
+		}
+	)
+}
 
-function fixAri(){
+async function fixAri(){
 	document.getElementById("error_output").innerText = ""
 	document.getElementById("results_output").innerText = ""
+	document.getElementById("log").innerText = ""
 	let l = new LocationFixer("AIzaSyAJIVVaniaWBtvDHyzsIhlVNXGSn2pwYb4")
 	let rawInput = document.getElementById("links").value
 	let coordinates = []
@@ -32,27 +49,14 @@ function fixAri(){
 			}
 		}
 	}
-	let promises = []
-	let segment_size = 1000
-	let segments = Math.ceil(coordinates.length / segment_size)
+	let segmentSize = 500
+	let segments = Math.ceil(coordinates.length / segmentSize)
+	let errorCoordinates = []
 	for(let i = 0; i < segments; i++){
-		for(let j = 0; j < Math.min(segment_size, coordinates.length - i * segment_size); j++){
-			promises.push(l.addFixedCoordinates(coordinates[i * segment_size + j]))
-		}
-		Promise.allSettled(promises).then(
-			results =>
-				{
-					if(i == segments - 1){
-						let error_coordinates = []
-						document.getElementById("results_output").innerText = l.export()
-						for(let j = 0; j < results.length; j++){
-							if(results[j].status == "rejected"){
-								displayError(coordinates[j].lat + "," + coordinates[j].lng, results[j].reason.message)
-								error_coordinates.push(coordinates[j])
-							}
-						}
-						document.getElementById("error_output_json").innerText = JSON.stringify({"customCoordinates": error_coordinates})
-					}
-				}
-		)
+		await addCoordinateChunk(coordinates.slice(i * segmentSize, (i + 1) * segmentSize), l, errorCoordinates)
+		console.log(`${i} / ${segments}: ${l.newLocations.length}`)
+		document.getElementById("log").innerText = `processed ${(i+1) * segmentSize} / ${coordinates.length} locations`
 	}
+	document.getElementById("error_output_json").innerText = JSON.stringify({"customCoordinates": errorCoordinates})
+	document.getElementById("results_output").innerText = l.export()
+}

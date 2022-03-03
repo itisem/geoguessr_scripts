@@ -128,7 +128,7 @@ class LocationFixer{
 					}
 				}
 				if(!isError){
-					const newLocation = {"heading": heading, "pitch": pitch, "zoom": 0, "panoId": response.pano_id, "lat": response.location.lat, "lng": response.location.lng, "extra": location.extra}
+					const newLocation = {"heading": location.heading, "pitch": location.pitch, "zoom": 0, "panoId": response.pano_id, "lat": response.location.lat, "lng": response.location.lng, "extra": location.extra}
 					this.newLocations.push(newLocation)
 					return this.export(newLocation)
 				}
